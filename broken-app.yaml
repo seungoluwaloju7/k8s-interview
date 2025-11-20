@@ -1,0 +1,41 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: broken-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: broken-app
+  template:
+    metadata:
+      labels:
+        app: broken-app
+    spec:
+      containers:
+        - name: broken-app
+          image: busybox
+
+          command:
+            - sh
+            - -c
+            - |
+              echo "Starting broken app..."
+              echo "Checking Redis availability..."
+              
+              # Use inline printf (NO indentation before '*1')
+              printf '*1\r\n$4\r\nPING\r\n' | nc -w 1 redis 6379
+              
+              if [ $? -ne 0 ]; then
+                echo "Redis unreachable. Exiting..."
+                exit 1
+              fi
+              
+              echo "Redis is reachable!"
+              tail -f /dev/null
+          env:
+            - name: REDIS_HOST
+              value: "redis.default.svc.cluster.local"
+
+          ports:
+            - containerPort: 8080
